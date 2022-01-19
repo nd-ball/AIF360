@@ -68,6 +68,7 @@ Meta-metrics
 
    metrics.difference
    metrics.ratio
+   metrics.intersection
 
 Scorers
 -------
@@ -91,6 +92,8 @@ Generic metrics
    metrics.sensitivity_score
    metrics.base_rate
    metrics.selection_rate
+   metrics.smoothed_base_rate
+   metrics.smoothed_selection_rate
    metrics.generalized_fpr
    metrics.generalized_fnr
 
@@ -108,6 +111,8 @@ Group fairness metrics
    metrics.equal_opportunity_difference
    metrics.average_odds_difference
    metrics.average_odds_error
+   metrics.smoothed_edf
+   metrics.df_bias_amplification
    metrics.between_group_generalized_entropy_error
 
 Individual fairness metrics
