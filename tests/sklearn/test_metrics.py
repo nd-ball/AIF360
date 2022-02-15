@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal
 from sklearn.linear_model import LogisticRegression
@@ -13,7 +14,8 @@ from aif360.sklearn.metrics import (
         equal_opportunity_difference, average_odds_difference,
         average_odds_error, smoothed_edf, df_bias_amplification,
         generalized_entropy_error, between_group_generalized_entropy_error,
-        intersection, make_scorer)
+        class_imbalance, kl_divergence, conditional_demographic_disparity,
+        intersection, one_vs_rest, make_scorer)
 
 
 X, y, sample_weight = fetch_adult(numeric_only=True)
@@ -125,6 +127,30 @@ def test_between_group_generalized_entropy_index():
     bggei = between_group_generalized_entropy_error(y, y_pred, prot_attr='sex')
     assert bggei == cm.between_group_generalized_entropy_index()
 
+def test_class_imbalance():
+    prot_attr = pd.Series([1, 1, 1, 1, 0, 0, 0], name='sex')
+    y = pd.Series(np.random.random(7), index=prot_attr)  # y values are irrelevant
+    sample_weight = np.array([1, 2, 3, 4, 3, 2, 1])
+    assert class_imbalance(y, sample_weight=sample_weight) == -0.25  # -4/16
+    assert class_imbalance(y, priv_group=0, sample_weight=sample_weight) == 0.25
+
+def test_kl_divergence():
+    prot_attr = pd.Series([1, 1, 1, 1, 0, 0, 0], name='sex')
+    y = pd.Series([0, 1, 2, 0, 0, 1, 2], index=prot_attr)
+    sample_weight = [1, 2, 3, 4, 4, 3, 3]
+    kld = kl_divergence(y, priv_group=1, sample_weight=sample_weight)
+    assert np.isclose(kld, (5*np.log(5/4) + 2*np.log(2/3) + 3*np.log(3/3))/10)
+
+    kld = kl_divergence(y, priv_group=0, sample_weight=sample_weight)
+    assert np.isclose(kld, (4*np.log(4/5) + 3*np.log(3/2) + 3*np.log(3/3))/10)
+
+def test_conditional_demographic_disparity():
+    prot_attr = pd.Series([0, 0, 1, 1, 2, 2, 2], name='sex')
+    y = pd.Series([0, 1, 0, 1, 0, 1, 0], index=prot_attr)
+    sample_weight = [1, 2, 3, 4, 3, 2, 1]
+    cdd = conditional_demographic_disparity(y, sample_weight=sample_weight)
+    assert cdd == (3*(1-2) + 7*(3-4) + 6*(4-2)) / (8*16)
+
 @pytest.mark.parametrize(
     "func, is_ratio",
     [
@@ -146,3 +172,16 @@ def test_make_scorer(func, is_ratio):
         # The lower the better
         assert_almost_equal(-abs(actual), expected, 3)
         assert_almost_equal(-abs(actual_fliped), expected, 3)
+
+def test_one_vs_rest():
+    ovr = one_vs_rest(statistical_parity_difference, y, y_pred, prot_attr='sex')
+    assert ovr[0] == -ovr[1]
+    assert ovr[1] == statistical_parity_difference(y, y_pred, prot_attr='sex')
+
+    v, k = one_vs_rest(disparate_impact_ratio, y, y_pred, return_groups=True)
+    assert len(v) == 4
+    ovr = dict(zip(k, v))
+    for i in range(2):
+        for j in range(2):
+            g = (i, j)
+            assert disparate_impact_ratio(y, y_pred, priv_group=g) == ovr[g]
