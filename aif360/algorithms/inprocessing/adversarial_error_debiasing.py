@@ -35,7 +35,8 @@ class AdversarialErrorDebiasing(Transformer):
                  batch_size=128,
                  classifier_num_hidden_units=200,
                  debias=True,
-                 absolute=False):
+                 absolute=False,
+                 epsilon=0.001):
         """
         Args:
             unprivileged_groups (tuple): Representation for unprivileged groups
@@ -51,6 +52,8 @@ class AdversarialErrorDebiasing(Transformer):
                 in the classifier model.
             debias (bool, optional): Learn a classifier with or without
                 debiasing.
+            absolute (bool, optional): Use the absolute value of the error in the adversary
+            epsilon (float, optional): offset so that difference is not 0
         """
         super(AdversarialErrorDebiasing, self).__init__(
             unprivileged_groups=unprivileged_groups,
@@ -105,9 +108,9 @@ class AdversarialErrorDebiasing(Transformer):
         with tf.variable_scope("adversary_model"):
             c = tf.get_variable('c', initializer=tf.constant(1.0))
             if self.absolute:
-                s = tf.sigmoid((1 + tf.abs(c)) * tf.abs(pred_logits - true_labels+0.1))
+                s = tf.sigmoid((1 + tf.abs(c)) * tf.abs(pred_logits - true_labels+self.epsilon))
             else:
-                s = tf.sigmoid((1 + tf.abs(c)) * (pred_logits - true_labels))
+                s = tf.sigmoid((1 + tf.abs(c)) * (pred_logits - true_labels+self.epsilon))
             W2 = tf.get_variable('W2', [3, 1],
                                  initializer=tf.initializers.glorot_uniform(seed=self.seed4))
             b2 = tf.Variable(tf.zeros(shape=[1]), name='b2')
