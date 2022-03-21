@@ -82,7 +82,7 @@ class AdversarialErrorDebiasing(Transformer):
         self.true_labels_ph = None
         self.pred_labels = None
         self.absolute=absolute
-        self.epsilon=tf.Tensor(epsilon)
+        self.epsilon=tf.constant(epsilon)
 
     def _classifier_model(self, features, features_dim, keep_prob):
         """Compute the classifier predictions for the outcome variable.
